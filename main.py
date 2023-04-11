@@ -1,11 +1,12 @@
-import openpyxl
+mport openpyxl
 import numpy
+import pandas
 from  selenium import  webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
 import lxml
-from fake_useragent import UserAgent
+# from fake_useragent import UserAgent
 import time
 import requests
 import json
@@ -29,16 +30,16 @@ def read_matrix_from_excel(file_name):
     rows = sheet.max_row
     columns = sheet.max_column
     column=3
-    for row in range(2,70):#обработка данных из excel
+    for row in range(492,593):#обработка данных из excel
         data_list[sheet[row][column].value]=('url',(0,0))
     return data_list
     book.close()
 
-data_list = read_matrix_from_excel("Лавина1_Карасукский_район_Тест.xlsx")
+data_list = read_matrix_from_excel("Новосибирский р-н_на заполнение.xlsx")
 
 for key, value in data_list.items():
 
-  print("{0}: {1}".format(key,value))
+  print("{0}: {1}",value)
 
 def flt_from_str(string):
     """
@@ -62,7 +63,7 @@ def get_adr_url(data_list):
     :return:data_list В ходе работы функций заполняется url адреса объекта в яндекс картах , координаты объекта
     """
     url = "https://yandex.ru/maps/65/novosibirsk/?ll=82.920430%2C55.030199&z=12"
-    driver = webdriver.Chrome(executable_path="C:\\Users\\User\\PycharmProjects\\Coordinates\\hromdriver\\chromedriver.exe")
+    driver = webdriver.Chrome(executable_path="C:\\Users\\helpdesk\\PycharmProjects\\pythonProject\\hromdriver\\hromdriver.exe")
     try:
         driver.get(url=url)
         time.sleep(2)
@@ -71,23 +72,49 @@ def get_adr_url(data_list):
             input_adr = driver.find_element(By.CLASS_NAME, 'input__control')
             input_adr.send_keys(key)
             input_adr.send_keys(Keys.ENTER)
-            time.sleep(5)
-            soup = BeautifulSoup(driver.page_source,'lxml')
-            soup=soup.find(class_="toponym-card-title-view__coords-badge")
-            coordinates=flt_from_str(soup.text)
-            input_adr.clear()
             time.sleep(3)
-            driver.refresh()
-            data_list[key]=(driver.current_url,coordinates)
+            try:
+                soup = BeautifulSoup(driver.page_source,'lxml')
+                soup=soup.find(class_="toponym-card-title-view__coords-badge")
+                coordinates=flt_from_str(soup.text)
+            except Exception as ex:
+                print(ex)
+
+
+                continue
+                # driver.get(url=url)
+            finally:
+                input_adr.clear()
+                time.sleep(1)
+                driver.refresh()
+
+                data_list[key]=(driver.current_url,coordinates)
     except Exception as ex:
         print(ex)
     finally:
         return data_list
         driver.close()
         driver.quit()
-get_adr_url(data_list=data_list)
+data_list=get_adr_url(data_list=data_list)
 for key, value in data_list.items():
 
   print("{0}: {1}".format(key,value))
-# json_object = json.dumps(data_list, indent = 4,encodings='UTF-8')
-# print(json_object)
+def outPut(data_list):
+    wb = openpyxl.load_workbook('output.xlsx')  # Открываем тестовый Excel файл
+    wb.create_sheet('Sheet1')  # Создаем лист с названием "Sheet1"
+    worksheet = wb['Sheet1']  # Делаем его активным
+    i=1
+    for key, value in data_list.items():
+
+        worksheet[f'A{i}']=key #A указанную ячейку на активном листе пишем все, что в кавычках
+        url,coord=value
+        x,y=coord
+        x=str(x)
+        y=str(y)
+        coord=x+', '+y
+        worksheet[f'B{i}'] =url
+        worksheet[f'C{i}']=coord
+
+        i=i+1
+    wb.save('output.xlsx') #Сохраняем измененный файл
+outPut(data_list)
